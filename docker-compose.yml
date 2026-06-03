@@ -1,0 +1,12 @@
+services:
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    container_name: jupyter-pyspark
+    ports:
+      - "8888:8888" # Web UI для Jupyter Notebook
+      - "4040:4040" # Web UI для мониторинга Spark-задач (Spark UI)
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    volumes:
+      - ./notebooks:/home/jovyan/work/notebooks # Твои скрипты
+      - ./data:/home/jovyan/work/data           # Твои сгенерированные датасеты

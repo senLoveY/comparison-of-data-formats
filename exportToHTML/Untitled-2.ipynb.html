@@ -1,0 +1,257 @@
+<html>
+<head>
+<title>Untitled-2.ipynb</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+.s1 { color: #cf8e6d;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+.s5 { color: #7a7e85;}
+.ls0 { height: 1px; border-width: 0; color: #43454a; background-color:#43454a}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Untitled-2.ipynb</font>
+</center></td></tr></table>
+<pre><span class="s0">#%% 
+</span><span class="s1">from </span><span class="s0">pyspark</span><span class="s2">.</span><span class="s0">sql </span><span class="s1">import </span><span class="s0">SparkSession</span>
+<span class="s1">import </span><span class="s0">pyspark</span><span class="s2">.</span><span class="s0">sql</span><span class="s2">.</span><span class="s0">functions </span><span class="s1">as </span><span class="s0">F</span>
+<span class="s1">import </span><span class="s0">os</span>
+
+<span class="s0">spark </span><span class="s2">= </span><span class="s0">SparkSession</span><span class="s2">.</span><span class="s0">builder \</span>
+    <span class="s2">.</span><span class="s0">appName</span><span class="s2">(</span><span class="s3">&quot;DataGeneration_Experiment&quot;</span><span class="s2">) </span><span class="s0">\</span>
+    <span class="s2">.</span><span class="s0">config</span><span class="s2">(</span><span class="s3">&quot;spark.jars.packages&quot;</span><span class="s2">, </span><span class="s3">&quot;org.apache.spark:spark-avro_2.12:3.5.0&quot;</span><span class="s2">) </span><span class="s0">\</span>
+    <span class="s2">.</span><span class="s0">config</span><span class="s2">(</span><span class="s3">&quot;spark.sql.parquet.compression.codec&quot;</span><span class="s2">, </span><span class="s3">&quot;snappy&quot;</span><span class="s2">) </span><span class="s0">\</span>
+    <span class="s2">.</span><span class="s0">getOrCreate</span><span class="s2">()</span>
+
+<span class="s1">def </span><span class="s0">generate_dataset</span><span class="s2">(</span><span class="s0">num_rows</span><span class="s2">):</span>
+    <span class="s0">df </span><span class="s2">= </span><span class="s0">spark</span><span class="s2">.</span><span class="s0">range</span><span class="s2">(</span><span class="s4">0</span><span class="s2">, </span><span class="s0">num_rows</span><span class="s2">) </span><span class="s0">\</span>
+        <span class="s2">.</span><span class="s0">withColumn</span><span class="s2">(</span><span class="s3">&quot;user_id&quot;</span><span class="s2">, </span><span class="s0">F</span><span class="s2">.</span><span class="s0">round</span><span class="s2">(</span><span class="s0">F</span><span class="s2">.</span><span class="s0">rand</span><span class="s2">() * </span><span class="s4">1000000</span><span class="s2">).</span><span class="s0">cast</span><span class="s2">(</span><span class="s3">&quot;int&quot;</span><span class="s2">)) </span><span class="s0">\</span>
+        <span class="s2">.</span><span class="s0">withColumn</span><span class="s2">(</span><span class="s3">&quot;device&quot;</span><span class="s2">, </span><span class="s0">F</span><span class="s2">.</span><span class="s0">expr</span><span class="s2">(</span><span class="s3">&quot;case when rand() &lt; 0.6 then 'Mobile' else 'Desktop' end&quot;</span><span class="s2">)) </span><span class="s0">\</span>
+        <span class="s2">.</span><span class="s0">withColumn</span><span class="s2">(</span><span class="s3">&quot;amount&quot;</span><span class="s2">, </span><span class="s0">F</span><span class="s2">.</span><span class="s0">round</span><span class="s2">(</span><span class="s0">F</span><span class="s2">.</span><span class="s0">rand</span><span class="s2">() * </span><span class="s4">5000</span><span class="s2">, </span><span class="s4">2</span><span class="s2">)) </span><span class="s0">\</span>
+        <span class="s2">.</span><span class="s0">withColumn</span><span class="s2">(</span><span class="s3">&quot;event_date&quot;</span><span class="s2">, </span><span class="s0">F</span><span class="s2">.</span><span class="s0">current_date</span><span class="s2">() - </span><span class="s0">F</span><span class="s2">.</span><span class="s0">expr</span><span class="s2">(</span><span class="s3">&quot;INTERVAL 1 DAY&quot;</span><span class="s2">) * </span><span class="s0">F</span><span class="s2">.</span><span class="s0">round</span><span class="s2">(</span><span class="s0">F</span><span class="s2">.</span><span class="s0">rand</span><span class="s2">() * </span><span class="s4">365</span><span class="s2">)) </span><span class="s0">\</span>
+        <span class="s2">.</span><span class="s0">withColumn</span><span class="s2">(</span><span class="s3">&quot;payload_data&quot;</span><span class="s2">, </span><span class="s0">F</span><span class="s2">.</span><span class="s0">concat_ws</span><span class="s2">(</span><span class="s3">&quot;-&quot;</span><span class="s2">, </span><span class="s0">F</span><span class="s2">.</span><span class="s0">lit</span><span class="s2">(</span><span class="s3">&quot;event&quot;</span><span class="s2">), </span><span class="s0">F</span><span class="s2">.</span><span class="s0">col</span><span class="s2">(</span><span class="s3">&quot;id&quot;</span><span class="s2">), </span><span class="s0">F</span><span class="s2">.</span><span class="s0">lit</span><span class="s2">(</span><span class="s3">&quot;trace&quot;</span><span class="s2">)))</span>
+    <span class="s1">return </span><span class="s0">df</span><span class="s2">.</span><span class="s0">repartition</span><span class="s2">(</span><span class="s4">4</span><span class="s2">)</span>
+
+<span class="s0">row_counts </span><span class="s2">= {</span><span class="s3">&quot;1M&quot;</span><span class="s2">: </span><span class="s4">1000000</span><span class="s2">, </span><span class="s3">&quot;5M&quot;</span><span class="s2">: </span><span class="s4">5000000</span><span class="s2">, </span><span class="s3">&quot;10M&quot;</span><span class="s2">: </span><span class="s4">10000000</span><span class="s2">, </span><span class="s3">&quot;25M&quot;</span><span class="s2">: </span><span class="s4">25000000</span><span class="s2">}</span>
+<span class="s0">formats </span><span class="s2">= [</span><span class="s3">&quot;json&quot;</span><span class="s2">, </span><span class="s3">&quot;csv&quot;</span><span class="s2">, </span><span class="s3">&quot;avro&quot;</span><span class="s2">, </span><span class="s3">&quot;parquet&quot;</span><span class="s2">] </span><span class="s5"># Заменили ORC на CSV</span>
+<span class="s0">base_path </span><span class="s2">= </span><span class="s3">&quot;/home/jovyan/work/data&quot;</span>
+
+<span class="s1">for </span><span class="s0">label</span><span class="s2">, </span><span class="s0">count </span><span class="s1">in </span><span class="s0">row_counts</span><span class="s2">.</span><span class="s0">items</span><span class="s2">():</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s3">f&quot;Генерация датасета </span><span class="s1">{</span><span class="s0">label</span><span class="s1">} </span><span class="s3">(</span><span class="s1">{</span><span class="s0">count</span><span class="s1">} </span><span class="s3">строк)...&quot;</span><span class="s2">)</span>
+    <span class="s0">df </span><span class="s2">= </span><span class="s0">generate_dataset</span><span class="s2">(</span><span class="s0">count</span><span class="s2">).</span><span class="s0">cache</span><span class="s2">()</span>
+    <span class="s0">df</span><span class="s2">.</span><span class="s0">count</span><span class="s2">()</span>
+    
+    <span class="s1">for </span><span class="s0">fmt </span><span class="s1">in </span><span class="s0">formats</span><span class="s2">:</span>
+        <span class="s0">path </span><span class="s2">= </span><span class="s3">f&quot;</span><span class="s1">{</span><span class="s0">base_path</span><span class="s1">}</span><span class="s3">/dataset_</span><span class="s1">{</span><span class="s0">label</span><span class="s1">}</span><span class="s3">/</span><span class="s1">{</span><span class="s0">fmt</span><span class="s1">}</span><span class="s3">&quot;</span>
+        <span class="s0">writer </span><span class="s2">= </span><span class="s0">df</span><span class="s2">.</span><span class="s0">write</span><span class="s2">.</span><span class="s0">mode</span><span class="s2">(</span><span class="s3">&quot;overwrite&quot;</span><span class="s2">)</span>
+        
+        <span class="s5"># Для CSV обязательно сохраняем заголовки колонок</span>
+        <span class="s1">if </span><span class="s0">fmt </span><span class="s2">== </span><span class="s3">&quot;csv&quot;</span><span class="s2">:</span>
+            <span class="s0">writer</span><span class="s2">.</span><span class="s0">option</span><span class="s2">(</span><span class="s3">&quot;header&quot;</span><span class="s2">, </span><span class="s3">&quot;true&quot;</span><span class="s2">).</span><span class="s0">format</span><span class="s2">(</span><span class="s3">&quot;csv&quot;</span><span class="s2">).</span><span class="s0">save</span><span class="s2">(</span><span class="s0">path</span><span class="s2">)</span>
+        <span class="s1">elif </span><span class="s0">fmt </span><span class="s2">== </span><span class="s3">&quot;avro&quot;</span><span class="s2">:</span>
+            <span class="s0">writer</span><span class="s2">.</span><span class="s0">format</span><span class="s2">(</span><span class="s3">&quot;avro&quot;</span><span class="s2">).</span><span class="s0">save</span><span class="s2">(</span><span class="s0">path</span><span class="s2">)</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s0">writer</span><span class="s2">.</span><span class="s0">format</span><span class="s2">(</span><span class="s0">fmt</span><span class="s2">).</span><span class="s0">save</span><span class="s2">(</span><span class="s0">path</span><span class="s2">)</span>
+            
+    <span class="s0">df</span><span class="s2">.</span><span class="s0">unpersist</span><span class="s2">()</span>
+<span class="s0">print</span><span class="s2">(</span><span class="s3">&quot;Генерация завершена!&quot;</span><span class="s2">)</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1">import </span><span class="s0">os</span>
+<span class="s1">import </span><span class="s0">pandas </span><span class="s1">as </span><span class="s0">pd</span>
+
+<span class="s5"># 1. Функция для подсчета размера директории в мегабайтах</span>
+<span class="s1">def </span><span class="s0">get_dir_size_mb</span><span class="s2">(</span><span class="s0">start_path</span><span class="s2">):</span>
+    <span class="s0">total_size </span><span class="s2">= </span><span class="s4">0</span>
+    <span class="s1">if not </span><span class="s0">os</span><span class="s2">.</span><span class="s0">path</span><span class="s2">.</span><span class="s0">exists</span><span class="s2">(</span><span class="s0">start_path</span><span class="s2">):</span>
+        <span class="s1">return </span><span class="s4">0</span>
+    
+    <span class="s1">for </span><span class="s0">dirpath</span><span class="s2">, </span><span class="s0">dirnames</span><span class="s2">, </span><span class="s0">filenames </span><span class="s1">in </span><span class="s0">os</span><span class="s2">.</span><span class="s0">walk</span><span class="s2">(</span><span class="s0">start_path</span><span class="s2">):</span>
+        <span class="s1">for </span><span class="s0">f </span><span class="s1">in </span><span class="s0">filenames</span><span class="s2">:</span>
+            <span class="s0">fp </span><span class="s2">= </span><span class="s0">os</span><span class="s2">.</span><span class="s0">path</span><span class="s2">.</span><span class="s0">join</span><span class="s2">(</span><span class="s0">dirpath</span><span class="s2">, </span><span class="s0">f</span><span class="s2">)</span>
+            <span class="s5"># Игнорируем скрытые системные файлы (.crc) и маркеры успеха Spark (_SUCCESS)</span>
+            <span class="s1">if not </span><span class="s0">f</span><span class="s2">.</span><span class="s0">startswith</span><span class="s2">(</span><span class="s3">'.'</span><span class="s2">) </span><span class="s1">and not </span><span class="s0">f</span><span class="s2">.</span><span class="s0">endswith</span><span class="s2">(</span><span class="s3">'_SUCCESS'</span><span class="s2">) </span><span class="s1">and not </span><span class="s0">os</span><span class="s2">.</span><span class="s0">path</span><span class="s2">.</span><span class="s0">islink</span><span class="s2">(</span><span class="s0">fp</span><span class="s2">):</span>
+                <span class="s0">total_size </span><span class="s2">+= </span><span class="s0">os</span><span class="s2">.</span><span class="s0">path</span><span class="s2">.</span><span class="s0">getsize</span><span class="s2">(</span><span class="s0">fp</span><span class="s2">)</span>
+                
+    <span class="s1">return </span><span class="s0">total_size </span><span class="s2">/ (</span><span class="s4">1024 </span><span class="s2">* </span><span class="s4">1024</span><span class="s2">) </span><span class="s5"># Переводим байты в МБ</span>
+
+<span class="s5"># 2. Параметры нашего стенда</span>
+<span class="s0">base_path </span><span class="s2">= </span><span class="s3">&quot;/home/jovyan/work/data&quot;</span>
+<span class="s0">row_counts </span><span class="s2">= [</span><span class="s3">&quot;1M&quot;</span><span class="s2">, </span><span class="s3">&quot;5M&quot;</span><span class="s2">, </span><span class="s3">&quot;10M&quot;</span><span class="s2">, </span><span class="s3">&quot;25M&quot;</span><span class="s2">]</span>
+<span class="s0">formats </span><span class="s2">= [</span><span class="s3">&quot;json&quot;</span><span class="s2">, </span><span class="s3">&quot;csv&quot;</span><span class="s2">, </span><span class="s3">&quot;avro&quot;</span><span class="s2">, </span><span class="s3">&quot;parquet&quot;</span><span class="s2">] </span><span class="s5"># &lt;-- Заменили orc на csv</span>
+
+<span class="s0">results </span><span class="s2">= []</span>
+
+<span class="s5"># 3. Сбор статистики</span>
+<span class="s1">for </span><span class="s0">label </span><span class="s1">in </span><span class="s0">row_counts</span><span class="s2">:</span>
+    <span class="s0">row_data </span><span class="s2">= {</span><span class="s3">&quot;Количество строк&quot;</span><span class="s2">: </span><span class="s0">label</span><span class="s2">}</span>
+    
+    <span class="s5"># Собираем размеры для каждого формата</span>
+    <span class="s1">for </span><span class="s0">fmt </span><span class="s1">in </span><span class="s0">formats</span><span class="s2">:</span>
+        <span class="s0">path </span><span class="s2">= </span><span class="s3">f&quot;</span><span class="s1">{</span><span class="s0">base_path</span><span class="s1">}</span><span class="s3">/dataset_</span><span class="s1">{</span><span class="s0">label</span><span class="s1">}</span><span class="s3">/</span><span class="s1">{</span><span class="s0">fmt</span><span class="s1">}</span><span class="s3">&quot;</span>
+        <span class="s0">size_mb </span><span class="s2">= </span><span class="s0">get_dir_size_mb</span><span class="s2">(</span><span class="s0">path</span><span class="s2">)</span>
+        <span class="s0">row_data</span><span class="s2">[</span><span class="s0">fmt</span><span class="s2">.</span><span class="s0">upper</span><span class="s2">()] = </span><span class="s0">round</span><span class="s2">(</span><span class="s0">size_mb</span><span class="s2">, </span><span class="s4">2</span><span class="s2">)</span>
+        
+    <span class="s5"># Вычисляем коэффициент сжатия Parquet относительно JSON</span>
+    <span class="s1">if </span><span class="s0">row_data</span><span class="s2">.</span><span class="s0">get</span><span class="s2">(</span><span class="s3">&quot;JSON&quot;</span><span class="s2">, </span><span class="s4">0</span><span class="s2">) &gt; </span><span class="s4">0 </span><span class="s1">and </span><span class="s0">row_data</span><span class="s2">.</span><span class="s0">get</span><span class="s2">(</span><span class="s3">&quot;PARQUET&quot;</span><span class="s2">, </span><span class="s4">0</span><span class="s2">) &gt; </span><span class="s4">0</span><span class="s2">:</span>
+        <span class="s0">compression_ratio </span><span class="s2">= </span><span class="s0">row_data</span><span class="s2">[</span><span class="s3">&quot;JSON&quot;</span><span class="s2">] / </span><span class="s0">row_data</span><span class="s2">[</span><span class="s3">&quot;PARQUET&quot;</span><span class="s2">]</span>
+        <span class="s0">row_data</span><span class="s2">[</span><span class="s3">&quot;Сжатие (JSON/Parquet)&quot;</span><span class="s2">] = </span><span class="s3">f&quot;</span><span class="s1">{</span><span class="s0">round</span><span class="s2">(</span><span class="s0">compression_ratio</span><span class="s2">, </span><span class="s4">1</span><span class="s2">)</span><span class="s1">}</span><span class="s3">x&quot;</span>
+    <span class="s1">else</span><span class="s2">:</span>
+        <span class="s0">row_data</span><span class="s2">[</span><span class="s3">&quot;Сжатие (JSON/Parquet)&quot;</span><span class="s2">] = </span><span class="s3">&quot;N/A&quot;</span>
+        
+    <span class="s0">results</span><span class="s2">.</span><span class="s0">append</span><span class="s2">(</span><span class="s0">row_data</span><span class="s2">)</span>
+
+<span class="s5"># 4. Вывод красивой таблицы</span>
+<span class="s0">df_sizes </span><span class="s2">= </span><span class="s0">pd</span><span class="s2">.</span><span class="s0">DataFrame</span><span class="s2">(</span><span class="s0">results</span><span class="s2">)</span>
+<span class="s0">print</span><span class="s2">(</span><span class="s0">df_sizes</span><span class="s2">.</span><span class="s0">to_string</span><span class="s2">(</span><span class="s0">index</span><span class="s2">=</span><span class="s1">False</span><span class="s2">)) </span><span class="s5"># to_string(index=False) уберет лишнюю колонку с индексами 0,1,2,3</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1">import </span><span class="s0">time</span>
+<span class="s1">import </span><span class="s0">pandas </span><span class="s1">as </span><span class="s0">pd</span>
+<span class="s1">import </span><span class="s0">pyspark</span><span class="s2">.</span><span class="s0">sql</span><span class="s2">.</span><span class="s0">functions </span><span class="s1">as </span><span class="s0">F</span>
+
+<span class="s5"># 1. Параметры нашего стенда</span>
+<span class="s0">base_path </span><span class="s2">= </span><span class="s3">&quot;/home/jovyan/work/data&quot;</span>
+<span class="s0">row_counts </span><span class="s2">= [</span><span class="s3">&quot;1M&quot;</span><span class="s2">, </span><span class="s3">&quot;5M&quot;</span><span class="s2">, </span><span class="s3">&quot;10M&quot;</span><span class="s2">, </span><span class="s3">&quot;25M&quot;</span><span class="s2">]</span>
+<span class="s0">formats </span><span class="s2">= [</span><span class="s3">&quot;json&quot;</span><span class="s2">, </span><span class="s3">&quot;csv&quot;</span><span class="s2">, </span><span class="s3">&quot;avro&quot;</span><span class="s2">, </span><span class="s3">&quot;parquet&quot;</span><span class="s2">] </span><span class="s5"># &lt;-- Заменили orc на csv</span>
+
+<span class="s0">benchmark_results </span><span class="s2">= []</span>
+
+<span class="s0">print</span><span class="s2">(</span><span class="s3">&quot;Начинаем нагрузочное тестирование (замеры wall time)...</span><span class="s1">\n</span><span class="s3">&quot;</span><span class="s2">)</span>
+
+<span class="s1">for </span><span class="s0">label </span><span class="s1">in </span><span class="s0">row_counts</span><span class="s2">:</span>
+    <span class="s0">print</span><span class="s2">(</span><span class="s3">f&quot;Тестируем объем: </span><span class="s1">{</span><span class="s0">label</span><span class="s1">}</span><span class="s3">...&quot;</span><span class="s2">)</span>
+    <span class="s1">for </span><span class="s0">fmt </span><span class="s1">in </span><span class="s0">formats</span><span class="s2">:</span>
+        <span class="s0">path </span><span class="s2">= </span><span class="s3">f&quot;</span><span class="s1">{</span><span class="s0">base_path</span><span class="s1">}</span><span class="s3">/dataset_</span><span class="s1">{</span><span class="s0">label</span><span class="s1">}</span><span class="s3">/</span><span class="s1">{</span><span class="s0">fmt</span><span class="s1">}</span><span class="s3">&quot;</span>
+        
+        <span class="s5"># Указываем формат для чтения</span>
+        <span class="s0">read_format </span><span class="s2">= </span><span class="s3">&quot;avro&quot; </span><span class="s1">if </span><span class="s0">fmt </span><span class="s2">== </span><span class="s3">&quot;avro&quot; </span><span class="s1">else </span><span class="s0">fmt</span>
+        
+        <span class="s5"># Настраиваем чтение: для CSV обязательно нужны заголовки и вывод схемы (типов данных)</span>
+        <span class="s1">if </span><span class="s0">fmt </span><span class="s2">== </span><span class="s3">&quot;csv&quot;</span><span class="s2">:</span>
+            <span class="s0">df </span><span class="s2">= </span><span class="s0">spark</span><span class="s2">.</span><span class="s0">read</span><span class="s2">.</span><span class="s0">format</span><span class="s2">(</span><span class="s0">read_format</span><span class="s2">) </span><span class="s0">\</span>
+                <span class="s2">.</span><span class="s0">option</span><span class="s2">(</span><span class="s3">&quot;header&quot;</span><span class="s2">, </span><span class="s3">&quot;true&quot;</span><span class="s2">) </span><span class="s0">\</span>
+                <span class="s2">.</span><span class="s0">option</span><span class="s2">(</span><span class="s3">&quot;inferSchema&quot;</span><span class="s2">, </span><span class="s3">&quot;true&quot;</span><span class="s2">) </span><span class="s0">\</span>
+                <span class="s2">.</span><span class="s0">load</span><span class="s2">(</span><span class="s0">path</span><span class="s2">)</span>
+        <span class="s1">else</span><span class="s2">:</span>
+            <span class="s0">df </span><span class="s2">= </span><span class="s0">spark</span><span class="s2">.</span><span class="s0">read</span><span class="s2">.</span><span class="s0">format</span><span class="s2">(</span><span class="s0">read_format</span><span class="s2">).</span><span class="s0">load</span><span class="s2">(</span><span class="s0">path</span><span class="s2">)</span>
+        
+        <span class="s5"># ---------------------------------------------------</span>
+        <span class="s5"># Запрос 1: Фильтрация (Predicate Pushdown)</span>
+        <span class="s5"># ---------------------------------------------------</span>
+        <span class="s0">start_time </span><span class="s2">= </span><span class="s0">time</span><span class="s2">.</span><span class="s0">time</span><span class="s2">()</span>
+        <span class="s5"># Действие .count() заставляет Spark выполнить физическое чтение</span>
+        <span class="s0">df</span><span class="s2">.</span><span class="s0">filter</span><span class="s2">(</span><span class="s0">F</span><span class="s2">.</span><span class="s0">col</span><span class="s2">(</span><span class="s3">&quot;device&quot;</span><span class="s2">) == </span><span class="s3">'Mobile'</span><span class="s2">).</span><span class="s0">count</span><span class="s2">()</span>
+        <span class="s0">t_filter </span><span class="s2">= </span><span class="s0">time</span><span class="s2">.</span><span class="s0">time</span><span class="s2">() - </span><span class="s0">start_time</span>
+        
+        <span class="s5"># ---------------------------------------------------</span>
+        <span class="s5"># Запрос 2: Агрегация (Columnar Projection)</span>
+        <span class="s5"># ---------------------------------------------------</span>
+        <span class="s0">start_time </span><span class="s2">= </span><span class="s0">time</span><span class="s2">.</span><span class="s0">time</span><span class="s2">()</span>
+        <span class="s5"># Вычисляем среднюю сумму по типу устройства</span>
+        <span class="s0">df</span><span class="s2">.</span><span class="s0">groupBy</span><span class="s2">(</span><span class="s3">&quot;device&quot;</span><span class="s2">).</span><span class="s0">agg</span><span class="s2">(</span><span class="s0">F</span><span class="s2">.</span><span class="s0">avg</span><span class="s2">(</span><span class="s3">&quot;amount&quot;</span><span class="s2">)).</span><span class="s0">collect</span><span class="s2">()</span>
+        <span class="s0">t_agg </span><span class="s2">= </span><span class="s0">time</span><span class="s2">.</span><span class="s0">time</span><span class="s2">() - </span><span class="s0">start_time</span>
+        
+        <span class="s5"># Сохраняем результаты</span>
+        <span class="s0">benchmark_results</span><span class="s2">.</span><span class="s0">append</span><span class="s2">({</span>
+            <span class="s3">&quot;Объем (Строки)&quot;</span><span class="s2">: </span><span class="s0">label</span><span class="s2">,</span>
+            <span class="s3">&quot;Формат&quot;</span><span class="s2">: </span><span class="s0">fmt</span><span class="s2">.</span><span class="s0">upper</span><span class="s2">(),</span>
+            <span class="s3">&quot;Время фильтрации (сек)&quot;</span><span class="s2">: </span><span class="s0">round</span><span class="s2">(</span><span class="s0">t_filter</span><span class="s2">, </span><span class="s4">2</span><span class="s2">),</span>
+            <span class="s3">&quot;Время агрегации (сек)&quot;</span><span class="s2">: </span><span class="s0">round</span><span class="s2">(</span><span class="s0">t_agg</span><span class="s2">, </span><span class="s4">2</span><span class="s2">)</span>
+        <span class="s2">})</span>
+
+<span class="s0">print</span><span class="s2">(</span><span class="s3">&quot;Тестирование завершено!</span><span class="s1">\n</span><span class="s3">&quot;</span><span class="s2">)</span>
+
+<span class="s5"># Формируем и выводим таблицу</span>
+<span class="s0">df_bench </span><span class="s2">= </span><span class="s0">pd</span><span class="s2">.</span><span class="s0">DataFrame</span><span class="s2">(</span><span class="s0">benchmark_results</span><span class="s2">)</span>
+
+<span class="s5"># Сделаем сводную таблицу для удобного сравнения</span>
+<span class="s0">pivot_bench </span><span class="s2">= </span><span class="s0">df_bench</span><span class="s2">.</span><span class="s0">pivot</span><span class="s2">(</span><span class="s0">index</span><span class="s2">=</span><span class="s3">&quot;Объем (Строки)&quot;</span><span class="s2">, </span><span class="s0">columns</span><span class="s2">=</span><span class="s3">&quot;Формат&quot;</span><span class="s2">)</span>
+<span class="s5"># Сортируем индекс, чтобы объемы шли по порядку</span>
+<span class="s0">pivot_bench </span><span class="s2">= </span><span class="s0">pivot_bench</span><span class="s2">.</span><span class="s0">reindex</span><span class="s2">([</span><span class="s3">&quot;1M&quot;</span><span class="s2">, </span><span class="s3">&quot;5M&quot;</span><span class="s2">, </span><span class="s3">&quot;10M&quot;</span><span class="s2">, </span><span class="s3">&quot;25M&quot;</span><span class="s2">])</span>
+<span class="s0">print</span><span class="s2">(</span><span class="s0">pivot_bench</span><span class="s2">)</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1">import </span><span class="s0">matplotlib</span><span class="s2">.</span><span class="s0">pyplot </span><span class="s1">as </span><span class="s0">plt</span>
+
+<span class="s0">volumes </span><span class="s2">= [</span><span class="s4">1</span><span class="s2">, </span><span class="s4">5</span><span class="s2">, </span><span class="s4">10</span><span class="s2">, </span><span class="s4">25</span><span class="s2">] </span>
+
+<span class="s0">filter_json </span><span class="s2">= [</span><span class="s4">0.32</span><span class="s2">, </span><span class="s4">1.32</span><span class="s2">, </span><span class="s4">2.52</span><span class="s2">, </span><span class="s4">7.55</span><span class="s2">]</span>
+<span class="s0">filter_csv </span><span class="s2">= [</span><span class="s4">0.25</span><span class="s2">, </span><span class="s4">1.05</span><span class="s2">, </span><span class="s4">1.95</span><span class="s2">, </span><span class="s4">4.80</span><span class="s2">] </span><span class="s5"># ВСТАВЬ СВОИ ДАННЫЕ</span>
+<span class="s0">filter_avro </span><span class="s2">= [</span><span class="s4">0.15</span><span class="s2">, </span><span class="s4">0.41</span><span class="s2">, </span><span class="s4">0.77</span><span class="s2">, </span><span class="s4">2.20</span><span class="s2">]</span>
+<span class="s0">filter_parquet </span><span class="s2">= [</span><span class="s4">0.05</span><span class="s2">, </span><span class="s4">0.07</span><span class="s2">, </span><span class="s4">0.11</span><span class="s2">, </span><span class="s4">0.23</span><span class="s2">]</span>
+
+<span class="s0">agg_json </span><span class="s2">= [</span><span class="s4">0.47</span><span class="s2">, </span><span class="s4">1.58</span><span class="s2">, </span><span class="s4">2.90</span><span class="s2">, </span><span class="s4">8.54</span><span class="s2">]</span>
+<span class="s0">agg_csv </span><span class="s2">= [</span><span class="s4">0.35</span><span class="s2">, </span><span class="s4">1.25</span><span class="s2">, </span><span class="s4">2.20</span><span class="s2">, </span><span class="s4">5.50</span><span class="s2">] </span><span class="s5"># ВСТАВЬ СВОИ ДАННЫЕ</span>
+<span class="s0">agg_avro </span><span class="s2">= [</span><span class="s4">0.16</span><span class="s2">, </span><span class="s4">0.50</span><span class="s2">, </span><span class="s4">0.75</span><span class="s2">, </span><span class="s4">2.15</span><span class="s2">]</span>
+<span class="s0">agg_parquet </span><span class="s2">= [</span><span class="s4">0.07</span><span class="s2">, </span><span class="s4">0.16</span><span class="s2">, </span><span class="s4">0.25</span><span class="s2">, </span><span class="s4">0.57</span><span class="s2">]</span>
+
+<span class="s0">avg_json </span><span class="s2">= [(</span><span class="s0">f </span><span class="s2">+ </span><span class="s0">a</span><span class="s2">) / </span><span class="s4">2 </span><span class="s1">for </span><span class="s0">f</span><span class="s2">, </span><span class="s0">a </span><span class="s1">in </span><span class="s0">zip</span><span class="s2">(</span><span class="s0">filter_json</span><span class="s2">, </span><span class="s0">agg_json</span><span class="s2">)]</span>
+<span class="s0">avg_csv </span><span class="s2">= [(</span><span class="s0">f </span><span class="s2">+ </span><span class="s0">a</span><span class="s2">) / </span><span class="s4">2 </span><span class="s1">for </span><span class="s0">f</span><span class="s2">, </span><span class="s0">a </span><span class="s1">in </span><span class="s0">zip</span><span class="s2">(</span><span class="s0">filter_csv</span><span class="s2">, </span><span class="s0">agg_csv</span><span class="s2">)]</span>
+<span class="s0">avg_avro </span><span class="s2">= [(</span><span class="s0">f </span><span class="s2">+ </span><span class="s0">a</span><span class="s2">) / </span><span class="s4">2 </span><span class="s1">for </span><span class="s0">f</span><span class="s2">, </span><span class="s0">a </span><span class="s1">in </span><span class="s0">zip</span><span class="s2">(</span><span class="s0">filter_avro</span><span class="s2">, </span><span class="s0">agg_avro</span><span class="s2">)]</span>
+<span class="s0">avg_parquet </span><span class="s2">= [(</span><span class="s0">f </span><span class="s2">+ </span><span class="s0">a</span><span class="s2">) / </span><span class="s4">2 </span><span class="s1">for </span><span class="s0">f</span><span class="s2">, </span><span class="s0">a </span><span class="s1">in </span><span class="s0">zip</span><span class="s2">(</span><span class="s0">filter_parquet</span><span class="s2">, </span><span class="s0">agg_parquet</span><span class="s2">)]</span>
+
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">figure</span><span class="s2">(</span><span class="s0">figsize</span><span class="s2">=(</span><span class="s4">10</span><span class="s2">, </span><span class="s4">6</span><span class="s2">))</span>
+
+<span class="s0">colors </span><span class="s2">= {</span><span class="s3">'JSON'</span><span class="s2">: </span><span class="s3">'#e74c3c'</span><span class="s2">, </span><span class="s3">'CSV'</span><span class="s2">: </span><span class="s3">'#9b59b6'</span><span class="s2">, </span><span class="s3">'Avro'</span><span class="s2">: </span><span class="s3">'#e67e22'</span><span class="s2">, </span><span class="s3">'Parquet'</span><span class="s2">: </span><span class="s3">'#2ecc71'</span><span class="s2">}</span>
+<span class="s0">markers </span><span class="s2">= {</span><span class="s3">'JSON'</span><span class="s2">: </span><span class="s3">'o'</span><span class="s2">, </span><span class="s3">'CSV'</span><span class="s2">: </span><span class="s3">'o'</span><span class="s2">, </span><span class="s3">'Avro'</span><span class="s2">: </span><span class="s3">'o'</span><span class="s2">, </span><span class="s3">'Parquet'</span><span class="s2">: </span><span class="s3">'o'</span><span class="s2">}</span>
+
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">plot</span><span class="s2">(</span><span class="s0">volumes</span><span class="s2">, </span><span class="s0">avg_json</span><span class="s2">, </span><span class="s0">marker</span><span class="s2">=</span><span class="s0">markers</span><span class="s2">[</span><span class="s3">'JSON'</span><span class="s2">], </span><span class="s0">color</span><span class="s2">=</span><span class="s0">colors</span><span class="s2">[</span><span class="s3">'JSON'</span><span class="s2">], </span><span class="s0">linewidth</span><span class="s2">=</span><span class="s4">2.5</span><span class="s2">, </span><span class="s0">markersize</span><span class="s2">=</span><span class="s4">8</span><span class="s2">, </span><span class="s0">label</span><span class="s2">=</span><span class="s3">'JSON'</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">plot</span><span class="s2">(</span><span class="s0">volumes</span><span class="s2">, </span><span class="s0">avg_csv</span><span class="s2">, </span><span class="s0">marker</span><span class="s2">=</span><span class="s0">markers</span><span class="s2">[</span><span class="s3">'CSV'</span><span class="s2">], </span><span class="s0">color</span><span class="s2">=</span><span class="s0">colors</span><span class="s2">[</span><span class="s3">'CSV'</span><span class="s2">], </span><span class="s0">linewidth</span><span class="s2">=</span><span class="s4">2.5</span><span class="s2">, </span><span class="s0">markersize</span><span class="s2">=</span><span class="s4">8</span><span class="s2">, </span><span class="s0">label</span><span class="s2">=</span><span class="s3">'CSV'</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">plot</span><span class="s2">(</span><span class="s0">volumes</span><span class="s2">, </span><span class="s0">avg_avro</span><span class="s2">, </span><span class="s0">marker</span><span class="s2">=</span><span class="s0">markers</span><span class="s2">[</span><span class="s3">'Avro'</span><span class="s2">], </span><span class="s0">color</span><span class="s2">=</span><span class="s0">colors</span><span class="s2">[</span><span class="s3">'Avro'</span><span class="s2">], </span><span class="s0">linewidth</span><span class="s2">=</span><span class="s4">2.5</span><span class="s2">, </span><span class="s0">markersize</span><span class="s2">=</span><span class="s4">8</span><span class="s2">, </span><span class="s0">label</span><span class="s2">=</span><span class="s3">'Apache Avro'</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">plot</span><span class="s2">(</span><span class="s0">volumes</span><span class="s2">, </span><span class="s0">avg_parquet</span><span class="s2">, </span><span class="s0">marker</span><span class="s2">=</span><span class="s0">markers</span><span class="s2">[</span><span class="s3">'Parquet'</span><span class="s2">], </span><span class="s0">color</span><span class="s2">=</span><span class="s0">colors</span><span class="s2">[</span><span class="s3">'Parquet'</span><span class="s2">], </span><span class="s0">linewidth</span><span class="s2">=</span><span class="s4">2.5</span><span class="s2">, </span><span class="s0">markersize</span><span class="s2">=</span><span class="s4">8</span><span class="s2">, </span><span class="s0">label</span><span class="s2">=</span><span class="s3">'Apache Parquet'</span><span class="s2">)</span>
+
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">xlabel</span><span class="s2">(</span><span class="s3">'Объем данных (млн. строк)'</span><span class="s2">, </span><span class="s0">fontsize</span><span class="s2">=</span><span class="s4">18</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">ylabel</span><span class="s2">(</span><span class="s3">'Среднее время выполнения (сек)'</span><span class="s2">, </span><span class="s0">fontsize</span><span class="s2">=</span><span class="s4">18</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">xticks</span><span class="s2">(</span><span class="s0">volumes</span><span class="s2">, [</span><span class="s3">f&quot;</span><span class="s1">{</span><span class="s0">v</span><span class="s1">}</span><span class="s3">M&quot; </span><span class="s1">for </span><span class="s0">v </span><span class="s1">in </span><span class="s0">volumes</span><span class="s2">], </span><span class="s0">fontsize</span><span class="s2">=</span><span class="s4">11</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">grid</span><span class="s2">(</span><span class="s1">True</span><span class="s2">, </span><span class="s0">linestyle</span><span class="s2">=</span><span class="s3">'--'</span><span class="s2">, </span><span class="s0">alpha</span><span class="s2">=</span><span class="s4">0.7</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">legend</span><span class="s2">(</span><span class="s0">fontsize</span><span class="s2">=</span><span class="s4">18</span><span class="s2">, </span><span class="s0">loc</span><span class="s2">=</span><span class="s3">'upper left'</span><span class="s2">)</span>
+
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">tight_layout</span><span class="s2">()</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">savefig</span><span class="s2">(</span><span class="s3">'average_performance_degradation.png'</span><span class="s2">, </span><span class="s0">dpi</span><span class="s2">=</span><span class="s4">300</span><span class="s2">, </span><span class="s0">bbox_inches</span><span class="s2">=</span><span class="s3">'tight'</span><span class="s2">)</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">show</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+</span><span class="s1">import </span><span class="s0">matplotlib</span><span class="s2">.</span><span class="s0">pyplot </span><span class="s1">as </span><span class="s0">plt</span>
+<span class="s1">import </span><span class="s0">numpy </span><span class="s1">as </span><span class="s0">np</span>
+
+<span class="s5"># 1. Наши данные из таблицы</span>
+<span class="s0">labels </span><span class="s2">= [</span><span class="s3">'1M'</span><span class="s2">, </span><span class="s3">'5M'</span><span class="s2">, </span><span class="s3">'10M'</span><span class="s2">, </span><span class="s3">'25M'</span><span class="s2">]</span>
+<span class="s0">json_sizes </span><span class="s2">= [</span><span class="s4">135.18</span><span class="s2">, </span><span class="s4">684.37</span><span class="s2">, </span><span class="s4">1370.85</span><span class="s2">, </span><span class="s4">3458.93</span><span class="s2">]</span>
+<span class="s0">csv_sizes </span><span class="s2">= [</span><span class="s4">69.37</span><span class="s2">, </span><span class="s4">355.35</span><span class="s2">, </span><span class="s4">712.82</span><span class="s2">, </span><span class="s4">1813.84</span><span class="s2">]</span>
+<span class="s0">avro_sizes </span><span class="s2">= [</span><span class="s4">26.98</span><span class="s2">, </span><span class="s4">142.15</span><span class="s2">, </span><span class="s4">287.81</span><span class="s2">, </span><span class="s4">732.70</span><span class="s2">]</span>
+<span class="s0">parquet_sizes </span><span class="s2">= [</span><span class="s4">20.79</span><span class="s2">, </span><span class="s4">108.59</span><span class="s2">, </span><span class="s4">219.17</span><span class="s2">, </span><span class="s4">559.41</span><span class="s2">]</span>
+
+<span class="s5"># 2. Настройка позиций столбцов</span>
+<span class="s0">x </span><span class="s2">= </span><span class="s0">np</span><span class="s2">.</span><span class="s0">arange</span><span class="s2">(</span><span class="s0">len</span><span class="s2">(</span><span class="s0">labels</span><span class="s2">))  </span><span class="s5"># Расположение групп (0, 1, 2, 3)</span>
+<span class="s0">width </span><span class="s2">= </span><span class="s4">0.2  </span><span class="s5"># Ширина одного столбца</span>
+
+<span class="s5"># 3. Создаем график</span>
+<span class="s0">fig</span><span class="s2">, </span><span class="s0">ax </span><span class="s2">= </span><span class="s0">plt</span><span class="s2">.</span><span class="s0">subplots</span><span class="s2">(</span><span class="s0">figsize</span><span class="s2">=(</span><span class="s4">12</span><span class="s2">, </span><span class="s4">7</span><span class="s2">))</span>
+
+<span class="s5"># Строим столбцы со смещением от центра (x), чтобы они стояли рядом</span>
+<span class="s0">rects1 </span><span class="s2">= </span><span class="s0">ax</span><span class="s2">.</span><span class="s0">bar</span><span class="s2">(</span><span class="s0">x </span><span class="s2">- </span><span class="s0">width</span><span class="s2">*</span><span class="s4">1.5</span><span class="s2">, </span><span class="s0">json_sizes</span><span class="s2">, </span><span class="s0">width</span><span class="s2">, </span><span class="s0">label</span><span class="s2">=</span><span class="s3">'JSON'</span><span class="s2">, </span><span class="s0">color</span><span class="s2">=</span><span class="s3">'#e74c3c'</span><span class="s2">, </span><span class="s0">edgecolor</span><span class="s2">=</span><span class="s3">'black'</span><span class="s2">, </span><span class="s0">linewidth</span><span class="s2">=</span><span class="s4">0.5</span><span class="s2">)</span>
+<span class="s0">rects2 </span><span class="s2">= </span><span class="s0">ax</span><span class="s2">.</span><span class="s0">bar</span><span class="s2">(</span><span class="s0">x </span><span class="s2">- </span><span class="s0">width</span><span class="s2">*</span><span class="s4">0.5</span><span class="s2">, </span><span class="s0">csv_sizes</span><span class="s2">, </span><span class="s0">width</span><span class="s2">, </span><span class="s0">label</span><span class="s2">=</span><span class="s3">'CSV'</span><span class="s2">, </span><span class="s0">color</span><span class="s2">=</span><span class="s3">'#3498db'</span><span class="s2">, </span><span class="s0">edgecolor</span><span class="s2">=</span><span class="s3">'black'</span><span class="s2">, </span><span class="s0">linewidth</span><span class="s2">=</span><span class="s4">0.5</span><span class="s2">)</span>
+<span class="s0">rects3 </span><span class="s2">= </span><span class="s0">ax</span><span class="s2">.</span><span class="s0">bar</span><span class="s2">(</span><span class="s0">x </span><span class="s2">+ </span><span class="s0">width</span><span class="s2">*</span><span class="s4">0.5</span><span class="s2">, </span><span class="s0">avro_sizes</span><span class="s2">, </span><span class="s0">width</span><span class="s2">, </span><span class="s0">label</span><span class="s2">=</span><span class="s3">'Apache Avro'</span><span class="s2">, </span><span class="s0">color</span><span class="s2">=</span><span class="s3">'#e67e22'</span><span class="s2">, </span><span class="s0">edgecolor</span><span class="s2">=</span><span class="s3">'black'</span><span class="s2">, </span><span class="s0">linewidth</span><span class="s2">=</span><span class="s4">0.5</span><span class="s2">)</span>
+<span class="s0">rects4 </span><span class="s2">= </span><span class="s0">ax</span><span class="s2">.</span><span class="s0">bar</span><span class="s2">(</span><span class="s0">x </span><span class="s2">+ </span><span class="s0">width</span><span class="s2">*</span><span class="s4">1.5</span><span class="s2">, </span><span class="s0">parquet_sizes</span><span class="s2">, </span><span class="s0">width</span><span class="s2">, </span><span class="s0">label</span><span class="s2">=</span><span class="s3">'Apache Parquet'</span><span class="s2">, </span><span class="s0">color</span><span class="s2">=</span><span class="s3">'#2ecc71'</span><span class="s2">, </span><span class="s0">edgecolor</span><span class="s2">=</span><span class="s3">'black'</span><span class="s2">, </span><span class="s0">linewidth</span><span class="s2">=</span><span class="s4">0.5</span><span class="s2">)</span>
+
+<span class="s5"># 4. Оформление графика</span>
+<span class="s0">ax</span><span class="s2">.</span><span class="s0">set_ylabel</span><span class="s2">(</span><span class="s3">'Размер на диске (МБ)'</span><span class="s2">, </span><span class="s0">fontsize</span><span class="s2">=</span><span class="s4">12</span><span class="s2">, </span><span class="s0">fontweight</span><span class="s2">=</span><span class="s3">'bold'</span><span class="s2">)</span>
+<span class="s0">ax</span><span class="s2">.</span><span class="s0">set_xlabel</span><span class="s2">(</span><span class="s3">'Объем данных (млн. строк)'</span><span class="s2">, </span><span class="s0">fontsize</span><span class="s2">=</span><span class="s4">12</span><span class="s2">, </span><span class="s0">fontweight</span><span class="s2">=</span><span class="s3">'bold'</span><span class="s2">)</span>
+<span class="s0">ax</span><span class="s2">.</span><span class="s0">set_title</span><span class="s2">(</span><span class="s3">'Сравнительный анализ ресурсоемкости хранения данных'</span><span class="s2">, </span><span class="s0">fontsize</span><span class="s2">=</span><span class="s4">16</span><span class="s2">, </span><span class="s0">pad</span><span class="s2">=</span><span class="s4">20</span><span class="s2">, </span><span class="s0">fontweight</span><span class="s2">=</span><span class="s3">'bold'</span><span class="s2">)</span>
+<span class="s0">ax</span><span class="s2">.</span><span class="s0">set_xticks</span><span class="s2">(</span><span class="s0">x</span><span class="s2">)</span>
+<span class="s0">ax</span><span class="s2">.</span><span class="s0">set_xticklabels</span><span class="s2">(</span><span class="s0">labels</span><span class="s2">, </span><span class="s0">fontsize</span><span class="s2">=</span><span class="s4">12</span><span class="s2">)</span>
+
+<span class="s5"># Добавляем горизонтальную сетку для удобства сравнения высоты столбцов</span>
+<span class="s0">ax</span><span class="s2">.</span><span class="s0">grid</span><span class="s2">(</span><span class="s0">axis</span><span class="s2">=</span><span class="s3">'y'</span><span class="s2">, </span><span class="s0">linestyle</span><span class="s2">=</span><span class="s3">'--'</span><span class="s2">, </span><span class="s0">alpha</span><span class="s2">=</span><span class="s4">0.7</span><span class="s2">)</span>
+
+<span class="s5"># Легенда</span>
+<span class="s0">ax</span><span class="s2">.</span><span class="s0">legend</span><span class="s2">(</span><span class="s0">fontsize</span><span class="s2">=</span><span class="s4">12</span><span class="s2">, </span><span class="s0">loc</span><span class="s2">=</span><span class="s3">'upper left'</span><span class="s2">)</span>
+
+<span class="s5"># 5. Сохранение и вывод</span>
+<span class="s0">fig</span><span class="s2">.</span><span class="s0">tight_layout</span><span class="s2">()</span>
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">savefig</span><span class="s2">(</span><span class="s3">'storage_bar_chart.png'</span><span class="s2">, </span><span class="s0">dpi</span><span class="s2">=</span><span class="s4">300</span><span class="s2">, </span><span class="s0">bbox_inches</span><span class="s2">=</span><span class="s3">'tight'</span><span class="s2">)</span>
+<span class="s0">print</span><span class="s2">(</span><span class="s3">&quot;Колоночная диаграмма успешно сохранена как 'storage_bar_chart.png'&quot;</span><span class="s2">)</span>
+
+<span class="s0">plt</span><span class="s2">.</span><span class="s0">show</span><span class="s2">()</span><hr class="ls0"><span class="s0">#%% 
+</span></pre>
+</body>
+</html>
